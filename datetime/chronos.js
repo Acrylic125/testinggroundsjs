@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DateTimeIterator = exports.DateTimeCursor = exports.DateWrapper = exports.getDayAsString = exports.validateDay = exports.DAY_TO_MS = exports.HOUR_TO_MS = exports.MINS_TO_MS = exports.SECONDS_TO_MS = void 0;
+exports.DateTimeIterator = exports.DateTimeCursor = exports.DateWrapper = exports.setTimeOfDay = exports.cloneDateObject = exports.isDateLaterOrEqual = exports.isDateLater = exports.isDateEarlierOrEqual = exports.isDateEarlier = exports.isDateEqual = exports.getTime = exports.getDayAsString = exports.validateDay = exports.DAY_TO_MS = exports.HOUR_TO_MS = exports.MINS_TO_MS = exports.SECONDS_TO_MS = void 0;
 const utils = require("../utils");
 exports.SECONDS_TO_MS = 1000;
 exports.MINS_TO_MS = 60 * exports.SECONDS_TO_MS;
@@ -32,6 +32,45 @@ function getDayAsString(day, trimmed) {
     }
 }
 exports.getDayAsString = getDayAsString;
+function getTime(date) {
+    console.log(date.getTime());
+    return date.getTime();
+}
+exports.getTime = getTime;
+function isDateEqual(date, compareWith) {
+    return getTime(date) === getTime(compareWith);
+}
+exports.isDateEqual = isDateEqual;
+function isDateEarlier(date, compareWith) {
+    return getTime(date) < getTime(compareWith);
+}
+exports.isDateEarlier = isDateEarlier;
+function isDateEarlierOrEqual(date, compareWith) {
+    return getTime(date) <= getTime(compareWith);
+}
+exports.isDateEarlierOrEqual = isDateEarlierOrEqual;
+function isDateLater(date, compareWith) {
+    return !isDateEarlierOrEqual(date, compareWith);
+}
+exports.isDateLater = isDateLater;
+function isDateLaterOrEqual(date, compareWith) {
+    return !isDateEarlier(date, compareWith);
+}
+exports.isDateLaterOrEqual = isDateLaterOrEqual;
+function cloneDateObject(date) {
+    var newDate = new Date();
+    newDate.setTime(getTime(date));
+    return newDate;
+}
+exports.cloneDateObject = cloneDateObject;
+function setTimeOfDay(date, time) {
+    var realDateObject = (date instanceof DateWrapper) ? date.date : date;
+    realDateObject.setHours(0);
+    realDateObject.setMinutes(0);
+    realDateObject.setSeconds(0);
+    realDateObject.setMilliseconds(time);
+}
+exports.setTimeOfDay = setTimeOfDay;
 class DateWrapper {
     constructor(date = new Date()) {
         this.date = date;
@@ -56,10 +95,7 @@ class DateWrapper {
             (this.date.getSeconds() * exports.SECONDS_TO_MS) + this.date.getMilliseconds();
     }
     setDayTime(time) {
-        this.date.setHours(0);
-        this.date.setMinutes(0);
-        this.date.setSeconds(0);
-        this.date.setMilliseconds(time);
+        setTimeOfDay(this, time);
     }
     isWeekday() {
         var day = this.date.getDay();
@@ -68,21 +104,22 @@ class DateWrapper {
     isWeekend() {
         return !this.isWeekday();
     }
-    isEqualTo(date) {
-        if (date.constructor === DateWrapper) {
-            return this.getTime() === date.date.getTime();
+    isTheSameDayAs(date) {
+        if (date instanceof DateWrapper) {
+            return this.date.getDate() === date.date.getDate();
         }
-        else if (date.constructor === Date) {
+        else if (date instanceof Date) {
             return this.getTime() === date.getTime();
         }
         else {
             return false;
         }
     }
+    isEqualTo(date) {
+        return isDateEqual(this, date);
+    }
     clone() {
-        var newDate = new Date();
-        newDate.setTime(this.getTime());
-        return new DateWrapper(newDate);
+        return new DateWrapper(cloneDateObject(this));
     }
 }
 exports.DateWrapper = DateWrapper;
@@ -92,7 +129,7 @@ class DateTimeCursor {
         this.dateToStartFrom = dateToStartFrom;
         this.dateToEndTo = dateToEndTo;
         this.action = action;
-        this.cursor = new DateWrapper(dateToStartFrom);
+        this.cursor = new DateWrapper(cloneDateObject(dateToStartFrom));
         this.validateUse();
     }
     hasNext() {
@@ -101,7 +138,7 @@ class DateTimeCursor {
     next() {
         if (this.iterator.timeOfDay !== -1)
             this.cursor.setDayTime(this.iterator.timeOfDay);
-        this.action(this.cursor);
+        this.action(this, this.cursor);
         if (this.iterator.createNewDateObject)
             this.cursor = this.cursor.clone();
         this.cursor.setTime(this.cursor.getTime() + this.iterator.timeIncrement);
