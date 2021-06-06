@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DateTimeIterator = exports.DateWrapper = exports.getDayAsString = exports.validateDay = exports.DAY_TO_MS = exports.HOUR_TO_MS = exports.MINS_TO_MS = exports.SECONDS_TO_MS = void 0;
+exports.DateTimeIterator = exports.DateTimeCursor = exports.DateWrapper = exports.getDayAsString = exports.validateDay = exports.DAY_TO_MS = exports.HOUR_TO_MS = exports.MINS_TO_MS = exports.SECONDS_TO_MS = void 0;
 const utils = require("../utils");
 exports.SECONDS_TO_MS = 1000;
 exports.MINS_TO_MS = 60 * exports.SECONDS_TO_MS;
@@ -86,6 +86,34 @@ class DateWrapper {
     }
 }
 exports.DateWrapper = DateWrapper;
+class DateTimeCursor {
+    constructor(iterator, dateToStartFrom, dateToEndTo, action) {
+        this.iterator = iterator;
+        this.dateToStartFrom = dateToStartFrom;
+        this.dateToEndTo = dateToEndTo;
+        this.action = action;
+        this.cursor = new DateWrapper(dateToStartFrom);
+        this.validateUse();
+    }
+    hasNext() {
+        return this.cursor.getTime() <= this.dateToEndTo.getTime();
+    }
+    next() {
+        if (this.iterator.timeOfDay !== -1)
+            this.cursor.setDayTime(this.iterator.timeOfDay);
+        this.action(this.cursor);
+        if (this.iterator.createNewDateObject)
+            this.cursor = this.cursor.clone();
+        this.cursor.setTime(this.cursor.getTime() + this.iterator.timeIncrement);
+    }
+    validateUse() {
+        if (this.dateToStartFrom.getTime() > this.dateToEndTo.getTime())
+            throw new Error('The start from date must be earlier than the end to date.');
+        if (this.iterator.timeIncrement < 0)
+            throw new Error('The time increment must be greater than or equal to 0.');
+    }
+}
+exports.DateTimeCursor = DateTimeCursor;
 class DateTimeIterator {
     constructor(referenceDate = new Date()) {
         // Should a new date object be created for each iteration?
@@ -100,23 +128,14 @@ class DateTimeIterator {
     setIncrementByDays(days) {
         this.timeIncrement = days * exports.DAY_TO_MS;
     }
-    validateUse(dateToStartFrom, dateToEndTo) {
-        if (dateToStartFrom.getTime() > dateToEndTo.getTime())
-            throw new Error('The start from date must be earlier than the end to date.');
-        if (this.timeIncrement < 0)
-            throw new Error('The time increment must be greater than or equal to 0.');
-    }
     iterate(dateToStartFrom, dateToEndTo, action) {
-        this.validateUse(dateToStartFrom, dateToEndTo);
-        var cursor = new DateWrapper(dateToStartFrom);
+        var cursor = this.createDateTimeCursor(dateToStartFrom, dateToEndTo, action);
         do {
-            if (this.timeOfDay !== -1)
-                cursor.setDayTime(this.timeOfDay);
-            action(cursor);
-            if (this.createNewDateObject)
-                cursor = cursor.clone();
-            cursor.setTime(cursor.getTime() + this.timeIncrement);
-        } while (cursor.getTime() <= dateToEndTo.getTime());
+            cursor.next();
+        } while (cursor.hasNext());
+    }
+    createDateTimeCursor(dateToStartFrom, dateToEndTo, action) {
+        return new DateTimeCursor(this, dateToStartFrom, dateToEndTo, action);
     }
 }
 exports.DateTimeIterator = DateTimeIterator;

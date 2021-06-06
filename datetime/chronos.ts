@@ -98,6 +98,44 @@ export class DateWrapper {
 
 }
 
+export class DateTimeCursor {
+
+    readonly iterator: DateTimeIterator;
+    readonly dateToStartFrom: Date;
+    readonly dateToEndTo: Date;
+    readonly action: (DateWrapper: DateWrapper) => void;
+    cursor: DateWrapper;
+    
+    constructor(iterator: DateTimeIterator, dateToStartFrom: Date, dateToEndTo: Date, action: (DateWrapper: DateWrapper) => void) {
+        this.iterator = iterator;
+        this.dateToStartFrom = dateToStartFrom;
+        this.dateToEndTo = dateToEndTo;
+        this.action = action;
+        this.cursor = new DateWrapper(dateToStartFrom);
+        this.validateUse();
+    }
+
+    hasNext(): boolean {
+        return this.cursor.getTime() <= this.dateToEndTo.getTime();
+    }
+
+    next() {
+        if (this.iterator.timeOfDay !== -1) 
+            this.cursor.setDayTime(this.iterator.timeOfDay);
+        this.action(this.cursor);
+        if (this.iterator.createNewDateObject)
+            this.cursor = this.cursor.clone();
+        this.cursor.setTime(this.cursor.getTime() + this.iterator.timeIncrement);
+    }
+
+    private validateUse() {
+        if (this.dateToStartFrom.getTime() > this.dateToEndTo.getTime())
+            throw new Error('The start from date must be earlier than the end to date.');
+        if (this.iterator.timeIncrement < 0) 
+            throw new Error('The time increment must be greater than or equal to 0.');
+    }
+}
+
 export class DateTimeIterator {
 
     readonly referenceDate: Date;
@@ -117,24 +155,15 @@ export class DateTimeIterator {
         this.timeIncrement = days * DAY_TO_MS;
     }
 
-    validateUse(dateToStartFrom: Date, dateToEndTo: Date) {
-        if (dateToStartFrom.getTime() > dateToEndTo.getTime())
-            throw new Error('The start from date must be earlier than the end to date.');
-        if (this.timeIncrement < 0) 
-            throw new Error('The time increment must be greater than or equal to 0.');
+    iterate(dateToStartFrom: Date, dateToEndTo: Date, action: (dateWrapper: DateWrapper) => void) {
+        var cursor = this.createDateTimeCursor(dateToStartFrom, dateToEndTo, action);
+        do {
+            cursor.next();
+        } while (cursor.hasNext());
     }
 
-    iterate(dateToStartFrom: Date, dateToEndTo: Date, action: (DateWrapper: DateWrapper) => void) {
-        this.validateUse(dateToStartFrom, dateToEndTo);
-        var cursor = new DateWrapper(dateToStartFrom);
-        do {
-            if (this.timeOfDay !== -1) 
-                cursor.setDayTime(this.timeOfDay);
-            action(cursor);
-            if (this.createNewDateObject)
-                cursor = cursor.clone();
-            cursor.setTime(cursor.getTime() + this.timeIncrement)
-        } while (cursor.getTime() <= dateToEndTo.getTime());
+    createDateTimeCursor(dateToStartFrom: Date, dateToEndTo: Date, action: (dateWrapper: DateWrapper) => void): DateTimeCursor {
+        return new DateTimeCursor(this, dateToStartFrom, dateToEndTo, action);
     }
 
 }
