@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DateTimeIterator = exports.DateTimeCursor = exports.setDay = exports.setTimeOfDay = exports.getTimeOfDay = exports.cloneDateObject = exports.isWeekend = exports.isWeekday = exports.isDateLaterOrEqual = exports.isDateLater = exports.isDateEarlierOrEqual = exports.isDateEarlier = exports.isDateEqual = exports.removeWeek = exports.addWeek = exports.removeTime = exports.addTime = exports.setTime = exports.getTime = exports.getDayAsString = exports.validateDay = exports.Time = exports.Day = void 0;
+exports.DateTimeIterator = exports.DateTimeCursor = exports.getDaysInMonthFromDate = exports.getDaysInMonth = exports.setDayOfWeek = exports.setTimeOfDay = exports.getTimeOfDay = exports.cloneDateObject = exports.isWeekend = exports.isWeekday = exports.isDateLaterOrEqual = exports.isDateLater = exports.isDateEarlierOrEqual = exports.isDateEarlier = exports.isDateEqual = exports.isDateLaterOrEqualIgnoringTime = exports.isDateLaterIgnoringTime = exports.isDateEarlierOrEqualIgnoringTime = exports.isDateEarlierIgnoringTime = exports.isDateEqualIgnoringTime = exports.removeWeek = exports.addWeek = exports.getTimeIgnoringTimeOfDay = exports.removeTime = exports.addTime = exports.setTime = exports.getTime = exports.getDayAsString = exports.validateDay = exports.Time = exports.Day = void 0;
 const utils = require("../utils");
 var Day;
 (function (Day) {
@@ -63,6 +63,10 @@ function removeTime(date, time) {
     date.setTime(date.getTime() - time);
 }
 exports.removeTime = removeTime;
+function getTimeIgnoringTimeOfDay(date) {
+    return date.getTime() - getTimeOfDay(date);
+}
+exports.getTimeIgnoringTimeOfDay = getTimeIgnoringTimeOfDay;
 function addWeek(date, weeks) {
     addTime(date, Time.WEEK);
 }
@@ -71,6 +75,26 @@ function removeWeek(date, weeks) {
     addWeek(date, -weeks);
 }
 exports.removeWeek = removeWeek;
+function isDateEqualIgnoringTime(date, compareWith) {
+    return getTimeIgnoringTimeOfDay(date) === getTimeIgnoringTimeOfDay(compareWith);
+}
+exports.isDateEqualIgnoringTime = isDateEqualIgnoringTime;
+function isDateEarlierIgnoringTime(date, compareWith) {
+    return getTimeIgnoringTimeOfDay(date) < getTimeIgnoringTimeOfDay(compareWith);
+}
+exports.isDateEarlierIgnoringTime = isDateEarlierIgnoringTime;
+function isDateEarlierOrEqualIgnoringTime(date, compareWith) {
+    return getTimeIgnoringTimeOfDay(date) <= getTimeIgnoringTimeOfDay(compareWith);
+}
+exports.isDateEarlierOrEqualIgnoringTime = isDateEarlierOrEqualIgnoringTime;
+function isDateLaterIgnoringTime(date, compareWith) {
+    return !isDateEarlierOrEqualIgnoringTime(date, compareWith);
+}
+exports.isDateLaterIgnoringTime = isDateLaterIgnoringTime;
+function isDateLaterOrEqualIgnoringTime(date, compareWith) {
+    return !isDateEarlierIgnoringTime(date, compareWith);
+}
+exports.isDateLaterOrEqualIgnoringTime = isDateLaterOrEqualIgnoringTime;
 function isDateEqual(date, compareWith) {
     return getTime(date) === getTime(compareWith);
 }
@@ -118,10 +142,18 @@ function setTimeOfDay(date, time) {
     date.setMilliseconds(time);
 }
 exports.setTimeOfDay = setTimeOfDay;
-function setDay(date, day) {
+function setDayOfWeek(date, day) {
     date.setTime(date.getTime() - ((date.getDay() - day) * Time.DAY));
 }
-exports.setDay = setDay;
+exports.setDayOfWeek = setDayOfWeek;
+function getDaysInMonth(month, year) {
+    return new Date(year, utils.clamp(0, month, 11) + 1, 0).getDate();
+}
+exports.getDaysInMonth = getDaysInMonth;
+function getDaysInMonthFromDate(date) {
+    return getDaysInMonth(date.getMonth(), date.getFullYear());
+}
+exports.getDaysInMonthFromDate = getDaysInMonthFromDate;
 class DateTimeCursor {
     constructor(iterator, dateToStartFrom, dateToEndTo, action) {
         this.iterator = iterator;
@@ -152,14 +184,13 @@ class DateTimeCursor {
 exports.DateTimeCursor = DateTimeCursor;
 class DateTimeIterator {
     constructor(referenceDate = new Date()) {
+        this.referenceDate = referenceDate;
         // Should a new date object be created for each iteration?
         this.createNewDateObject = false;
         // What time should the date object be (0ms to 86,400,000ms)? -1 for the current time.
         this.timeOfDay = -1;
         // How much time should the iterator increment by.
         this.timeIncrement = Time.DAY;
-        this.referenceDate = referenceDate;
-        console.log(utils.clamp(3, 6, 1));
     }
     setIncrementByDays(days) {
         this.timeIncrement = days * Time.DAY;

@@ -61,12 +61,36 @@ export function removeTime(date: Date, time: number) {
     date.setTime(date.getTime() - time);
 }
 
+export function getTimeIgnoringTimeOfDay(date: Date): number {
+    return date.getTime() - getTimeOfDay(date);
+}
+
 export function addWeek(date: Date, weeks: number) {
     addTime(date, Time.WEEK);
 }
 
 export function removeWeek(date: Date, weeks: number) {
     addWeek(date, -weeks);
+}
+
+export function isDateEqualIgnoringTime(date: Date, compareWith: Date): boolean {
+    return getTimeIgnoringTimeOfDay(date) === getTimeIgnoringTimeOfDay(compareWith);
+}
+
+export function isDateEarlierIgnoringTime(date: Date, compareWith: Date): boolean {
+    return getTimeIgnoringTimeOfDay(date) < getTimeIgnoringTimeOfDay(compareWith);
+}
+
+export function isDateEarlierOrEqualIgnoringTime(date: Date, compareWith: Date): boolean {
+    return getTimeIgnoringTimeOfDay(date) <= getTimeIgnoringTimeOfDay(compareWith);
+}
+
+export function isDateLaterIgnoringTime(date: Date, compareWith: Date): boolean {
+    return !isDateEarlierOrEqualIgnoringTime(date, compareWith);
+}
+
+export function isDateLaterOrEqualIgnoringTime(date: Date, compareWith: Date): boolean {
+    return !isDateEarlierIgnoringTime(date, compareWith);
 }
 
 export function isDateEqual(date: Date, compareWith: Date): boolean {
@@ -116,8 +140,16 @@ export function setTimeOfDay(date: Date, time: number) {
     date.setMilliseconds(time);
 }
 
-export function setDay(date: Date, day: number) {
+export function setDayOfWeek(date: Date, day: number) {
     date.setTime(date.getTime() - ((date.getDay() - day) * Time.DAY))
+}
+
+export function getDaysInMonth(month: number, year: number) {
+    return new Date(year, utils.clamp(0, month, 11) + 1, 0).getDate();
+}
+
+export function getDaysInMonthFromDate(date: Date) {
+    return getDaysInMonth(date.getMonth(), date.getFullYear());
 }
 
 export interface DateCursorAction {
@@ -126,17 +158,12 @@ export interface DateCursorAction {
 
 export class DateTimeCursor {
 
-    readonly iterator: DateTimeIterator;
-    readonly dateToStartFrom: Date;
-    readonly dateToEndTo: Date;
-    readonly action: DateCursorAction;
     cursor: Date;
     
-    constructor(iterator: DateTimeIterator, dateToStartFrom: Date, dateToEndTo: Date, action: DateCursorAction) {
-        this.iterator = iterator;
-        this.dateToStartFrom = dateToStartFrom;
-        this.dateToEndTo = dateToEndTo;
-        this.action = action;
+    constructor(public readonly iterator: DateTimeIterator, 
+                public dateToStartFrom: Date,
+                public dateToEndTo: Date, 
+                public action: DateCursorAction) {
         this.cursor = new Date(cloneDateObject(dateToStartFrom));
         this.validateUse();
     }
@@ -164,7 +191,6 @@ export class DateTimeCursor {
 
 export class DateTimeIterator {
 
-    readonly referenceDate: Date;
     // Should a new date object be created for each iteration?
     createNewDateObject = false;
     // What time should the date object be (0ms to 86,400,000ms)? -1 for the current time.
@@ -172,9 +198,8 @@ export class DateTimeIterator {
     // How much time should the iterator increment by.
     timeIncrement = Time.DAY;
 
-    constructor(referenceDate: Date = new Date()) {
-        this.referenceDate = referenceDate;
-        console.log(utils.clamp(3, 6, 1));
+    constructor(public readonly referenceDate: Date = new Date()) {
+        
     }
 
     setIncrementByDays(days: number) {
