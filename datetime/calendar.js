@@ -53,3 +53,9 @@ class MonthCalendar extends Calendar {
     }
 }
 exports.MonthCalendar = MonthCalendar;
+class YearCalendar extends Calendar {
+    compute(action) {
+        const week = this.getStartEndDatesOfWeek();
+        this.dateTimeIterator.iterate(week.startingDate, week.endingDate, action);
+    }
+}
