@@ -1,9 +1,23 @@
 import utils = require('../utils');
 
-export const SECONDS_TO_MS = 1_000;
-export const MINS_TO_MS = 60 * SECONDS_TO_MS;
-export const HOUR_TO_MS = 60 * MINS_TO_MS;
-export const DAY_TO_MS = 24 * HOUR_TO_MS;
+export enum Day {
+    SUNDAY = 0,
+    MONDAY = 1,
+    TUESDAY = 2,
+    WEDNESDAY = 3,
+    THURSDAY = 4,
+    FRIDAY = 5,
+    SATURDAY = 6
+}
+
+export enum Time {
+    MILLISECONDS = 1,
+    SECONDS = 1000,
+    MINUTES = SECONDS * 60,
+    HOUR = MINUTES * 60,
+    DAY = HOUR * 24,
+    WEEK = DAY * 7
+}
 
 export function validateDay(day: number) {
     if (day < 0 || day > 6) 
@@ -31,113 +45,83 @@ export function getDayAsString(day: number, trimmed: boolean): string {
     }
 }
 
-export function getTime(date: Date | DateWrapper) {
-    console.log(date.getTime());
+export function getTime(date: Date): number {
     return date.getTime();
 }
 
-export function isDateEqual(date: Date | DateWrapper, compareWith: Date | DateWrapper) {
+export function setTime(date: Date, time: number) {
+    date.setTime(time);
+}
+
+export function addTime(date: Date, time: number) {
+    date.setTime(date.getTime() + time);
+}
+
+export function removeTime(date: Date, time: number) {
+    date.setTime(date.getTime() - time);
+}
+
+export function addWeek(date: Date, weeks: number) {
+    addTime(date, Time.WEEK);
+}
+
+export function removeWeek(date: Date, weeks: number) {
+    addWeek(date, -weeks);
+}
+
+export function isDateEqual(date: Date, compareWith: Date): boolean {
     return getTime(date) === getTime(compareWith);
 }
 
-export function isDateEarlier(date: Date | DateWrapper, compareWith: Date | DateWrapper) {
+export function isDateEarlier(date: Date, compareWith: Date): boolean {
     return getTime(date) < getTime(compareWith);
 }
 
-export function isDateEarlierOrEqual(date: Date | DateWrapper, compareWith: Date | DateWrapper) {
+export function isDateEarlierOrEqual(date: Date, compareWith: Date): boolean {
     return getTime(date) <= getTime(compareWith);
 }
 
-export function isDateLater(date: Date | DateWrapper, compareWith: Date | DateWrapper) {
+export function isDateLater(date: Date, compareWith: Date): boolean {
     return !isDateEarlierOrEqual(date, compareWith);
 }
 
-export function isDateLaterOrEqual(date: Date | DateWrapper, compareWith: Date | DateWrapper) {
+export function isDateLaterOrEqual(date: Date, compareWith: Date): boolean {
     return !isDateEarlier(date, compareWith);
 }
 
-export function cloneDateObject(date: Date | DateWrapper): Date {
+export function isWeekday(date: Date): boolean {
+    var day = date.getDay();
+    return day > 0 && day < 6;
+}
+
+export function isWeekend(date: Date): boolean {
+    return !isWeekday(date);
+}
+
+export function cloneDateObject(date: Date): Date {
     var newDate = new Date();
     newDate.setTime(getTime(date));
     return newDate;
 }
 
-export function setTimeOfDay(date: Date | DateWrapper, time: number) {
-    var realDateObject = (date instanceof DateWrapper) ? (<DateWrapper> date).date : <Date> date;
-    realDateObject.setHours(0);
-    realDateObject.setMinutes(0);
-    realDateObject.setSeconds(0);
-    realDateObject.setMilliseconds(time);
+export function getTimeOfDay(date: Date): number {
+    return (date.getHours() * Time.HOUR) + (date.getMinutes() * Time.MINUTES) +
+            (date.getSeconds() * Time.SECONDS) + date.getMilliseconds();
 }
 
-export class DateWrapper {
+export function setTimeOfDay(date: Date, time: number) {
+    date.setHours(0);
+    date.setMinutes(0);
+    date.setSeconds(0);
+    date.setMilliseconds(time);
+}
 
-    date: Date;
-
-    constructor(date: Date = new Date()) {
-        this.date = date;
-    }
-
-    getDayAsString(trimmed = false): string {
-        return getDayAsString(this.getDay(), trimmed);
-    }
-
-    getTime(): number {
-        return this.date.getTime();
-    }
-
-    setTime(time: number) {
-        this.date.setTime(time);
-    }
-
-    getDay(): number {
-        return this.date.getDay();
-    }
-
-    setDay(day: number) {
-        this.date.setTime(this.getTime() - ((this.getDay() - day) * DAY_TO_MS))
-    }
-    
-    getDayTime(): number {
-        return (this.date.getHours() * HOUR_TO_MS) + (this.date.getMinutes() * MINS_TO_MS) + 
-                (this.date.getSeconds() * SECONDS_TO_MS) + this.date.getMilliseconds();
-    }
-
-    setDayTime(time: number) {
-        setTimeOfDay(this, time);
-    }
-
-    isWeekday(): boolean {
-        var day = this.date.getDay();
-        return day > 0 && day < 6;
-    }
-
-    isWeekend(): boolean {
-        return !this.isWeekday();
-    }
-
-    isTheSameDayAs(date: Date | DateWrapper): boolean {
-        if (date instanceof DateWrapper) {
-            return this.date.getDate() === date.date.getDate();
-        } else if (date instanceof Date) {
-            return this.getTime() === date.getTime();
-        } else {
-            return false;
-        }
-    }
-
-    isEqualTo(date: Date | DateWrapper): boolean {
-        return isDateEqual(this, date);
-    }
-
-    clone(): DateWrapper {
-        return new DateWrapper(cloneDateObject(this));
-    }
-
+export function setDay(date: Date, day: number) {
+    date.setTime(date.getTime() - ((date.getDay() - day) * Time.DAY))
 }
 
 export interface DateCursorAction {
-    (DateTimeCursor: DateTimeCursor, DateWrapper: DateWrapper): void;
+    (dateTimeCursor: DateTimeCursor, date: Date): void;
 }
 
 export class DateTimeCursor {
@@ -146,14 +130,14 @@ export class DateTimeCursor {
     readonly dateToStartFrom: Date;
     readonly dateToEndTo: Date;
     readonly action: DateCursorAction;
-    cursor: DateWrapper;
+    cursor: Date;
     
     constructor(iterator: DateTimeIterator, dateToStartFrom: Date, dateToEndTo: Date, action: DateCursorAction) {
         this.iterator = iterator;
         this.dateToStartFrom = dateToStartFrom;
         this.dateToEndTo = dateToEndTo;
         this.action = action;
-        this.cursor = new DateWrapper(cloneDateObject(dateToStartFrom));
+        this.cursor = new Date(cloneDateObject(dateToStartFrom));
         this.validateUse();
     }
 
@@ -163,11 +147,11 @@ export class DateTimeCursor {
 
     next() {
         if (this.iterator.timeOfDay !== -1) 
-            this.cursor.setDayTime(this.iterator.timeOfDay);
+            setTimeOfDay(this.cursor, this.iterator.timeOfDay);
         this.action(this, this.cursor);
         if (this.iterator.createNewDateObject)
-            this.cursor = this.cursor.clone();
-        this.cursor.setTime(this.cursor.getTime() + this.iterator.timeIncrement);
+            this.cursor = cloneDateObject(this.cursor);
+        addTime(this.cursor, this.iterator.timeIncrement);
     }
 
     private validateUse() {
@@ -186,7 +170,7 @@ export class DateTimeIterator {
     // What time should the date object be (0ms to 86,400,000ms)? -1 for the current time.
     timeOfDay = -1;
     // How much time should the iterator increment by.
-    timeIncrement = DAY_TO_MS;
+    timeIncrement = Time.DAY;
 
     constructor(referenceDate: Date = new Date()) {
         this.referenceDate = referenceDate;
@@ -194,7 +178,7 @@ export class DateTimeIterator {
     }
 
     setIncrementByDays(days: number) {
-        this.timeIncrement = days * DAY_TO_MS;
+        this.timeIncrement = days * Time.DAY;
     }
 
     iterate(dateToStartFrom: Date, dateToEndTo: Date, action: DateCursorAction) {
